@@ -1,0 +1,24 @@
+# Local board inventory and runtime state
+boards.json
+registrations.json
+
+# Credentials
+*.token
+.secrets/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+tempmon
+tempmon-static
+dist/
+build/
+
+# Reports and logs
+*.log
+*.json.tmp

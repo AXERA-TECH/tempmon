@@ -1,0 +1,16 @@
+{
+  "boards": [
+    {
+      "name": "board-a",
+      "ip": "192.0.2.10",
+      "port": 8080
+    },
+    {
+      "name": "board-b",
+      "ip": "192.0.2.11",
+      "port": 8080,
+      "llama_port_min": 18080,
+      "llama_port_max": 18089
+    }
+  ]
+}
