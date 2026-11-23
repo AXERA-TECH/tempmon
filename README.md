@@ -15,6 +15,7 @@ tempmon 是 AX8860 板卡状态监控组件，包含两部分：
 ### 板端 agent
 
 - NPU 温度与 CPU load / 频率
+- NPU 平均利用率（所有 core/vNPU 取平均）
 - OS 内存与 CMM 内存池
 - 本地磁盘容量
 - 网卡累计流量与实时速率
@@ -319,6 +320,7 @@ python3 -m unittest discover -v
 | BSP / 芯片 | `/proc/ax_proc/version`、`/proc/ax_proc/chip_type` |
 | NPU TDP | `/proc/ax_proc/tdp` |
 | NPU clock | `/sys/kernel/debug/clk/npu*_clk_nn_glb/clk_rate` |
+| NPU 平均利用率 | `/proc/ax_proc/npu/top`，采样周期使用 `/proc/ax_proc/npu/top_period_ms`，建议 `1000 ms` |
 | llama 进程 | `/proc/<pid>/comm`、`/proc/<pid>/status` |
 | 监听端口 | `/proc/net/tcp`、`/proc/net/tcp6` |
 

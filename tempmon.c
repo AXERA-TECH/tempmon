@@ -28,7 +28,7 @@
 #define PORT_DEFAULT 8080
 #define MAX_ZONES 16
 #define MAX_BUF 32768
-#define AGENT_VERSION "2.1.0"
+#define AGENT_VERSION "2.2.0"
 #define LLAMA_PORT_MIN 18080
 #define LLAMA_PORT_MAX 18089
 
@@ -153,6 +153,27 @@ static int get_npu_clocks(long mhz[], int max_cores) {
         if (hz > 0) mhz[n++] = hz / 1000000;
     }
     return n;
+}
+
+/* NPU 利用率：读取 /proc/ax_proc/npu/top，对所有 core/vNPU 行取平均。
+ * 返回 -1 表示统计未使能或接口不可用。 */
+static double get_npu_util_avg(void) {
+    FILE *f = fopen("/proc/ax_proc/npu/top", "r");
+    if (!f) return -1;
+    char line[512];
+    int count = 0;
+    double sum = 0.0;
+    while (fgets(line, sizeof(line), f)) {
+        int cluster, core, vnpu, util;
+        long times, period;
+        if (sscanf(line, "%d %d %d %ld %ld %d%%",
+                   &cluster, &core, &vnpu, &times, &period, &util) == 6) {
+            sum += util;
+            count++;
+        }
+    }
+    fclose(f);
+    return count ? sum / count : -1;
 }
 
 static int get_llama_processes(char *js, size_t cap, long *rss_total_kb) {
@@ -473,6 +494,7 @@ static void build_json(char *buf, size_t cap) {
     char disks_js[8192];
     char llama_js[4096], listen_js[1024];
     long tdp_mhz, npu_clocks[8], llama_rss_kb = 0;
+    double npu_util_avg;
     int nnpu, llama_procs, llama_ports;
     char bsp_version[128], chip_type[128];
     /* 网络速率：读 end0 累计字节数，跟上一次采样做差 */
@@ -495,6 +517,7 @@ static void build_json(char *buf, size_t cap) {
     get_disks(disks_js, sizeof(disks_js));
     tdp_mhz = get_tdp_freq_mhz();
     nnpu = get_npu_clocks(npu_clocks, 8);
+    npu_util_avg = get_npu_util_avg();
     llama_procs = get_llama_processes(llama_js, sizeof(llama_js), &llama_rss_kb);
     llama_ports = get_llama_listen_ports(listen_js, sizeof(listen_js));
     read_str_file("/proc/ax_proc/version", bsp_version, sizeof(bsp_version));
@@ -520,7 +543,12 @@ static void build_json(char *buf, size_t cap) {
     json_append(&p, &left, ",\"npu\":{\"tdp_freq_mhz\":%ld,\"clock_mhz\":[", tdp_mhz);
     for (int i = 0; i < nnpu; i++)
         json_append(&p, &left, "%s%ld", i ? "," : "", npu_clocks[i]);
-    json_append(&p, &left, "]}");
+    json_append(&p, &left, "],\"util_avg\":");
+    if (npu_util_avg >= 0)
+        json_append(&p, &left, "%.1f", npu_util_avg);
+    else
+        json_append(&p, &left, "null");
+    json_append(&p, &left, "}");
     json_append(&p, &left, ",\"llama\":{\"process_count\":%d,\"rss_kb\":%ld,\"listening_port_count\":%d,\"processes\":%s,\"listening_ports\":%s}",
                 llama_procs, llama_rss_kb, llama_ports, llama_js, listen_js);
 
@@ -578,7 +606,7 @@ static const char *HTML =
 "h+=card('CPU', d.cpu_cores+' cores', cf);"
 "h+=card('Memory', fmtG(used)+' / '+fmtG(d.mem.total_kb), bar(mpct)+d.mem.used_kb+' KB used');"
 "if(d.agent){h+=card('Agent', d.agent.version, d.agent.chip_type+' · '+d.agent.bsp_version);}"
-"if(d.npu){h+=card('NPU TDP', d.npu.tdp_freq_mhz+' MHz', d.npu.clock_mhz.join(' / ')+ ' MHz clocks');}"
+"if(d.npu){var nu=d.npu.util_avg;h+=card('NPU Utilization', nu==null?'--':nu.toFixed(1)+'%', d.npu.tdp_freq_mhz+' MHz TDP · '+d.npu.clock_mhz.join(' / ')+' MHz clocks', nu==null?'':(nu>=90?'hot':(nu>=70?'warn':'')));}"
 "if(d.llama){h+=card('llama-server', d.llama.process_count+' proc', fmtG(d.llama.rss_kb)+' RSS · ports '+d.llama.listening_ports.join(','));}"
 "if(d.cmm&&d.cmm.total_kb>0){var cpct=Math.min(100,d.cmm.used_kb/d.cmm.total_kb*100);"
 "var ccls=cpct>=60?'hot':(cpct>=30?'warn':'');"

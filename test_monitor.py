@@ -99,6 +99,7 @@ class HistoryTests(unittest.TestCase):
                 "mem": {"total_kb": 1024, "avail_kb": 256},
                 "cmm": {"used_kb": 512},
                 "net": {"rx_mbps": "12.5", "tx_mbps": 2.25},
+                "npu": {"util_avg": 87.25},
                 "zones": [{"c": 41.5}, {"c": 48.25}, {"c": None}],
                 "llama": {"rss_kb": 1024},
             },
@@ -116,6 +117,7 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(sample["os_available_kb"], 256.0)
         self.assertEqual(sample["cmm_used_kb"], 512.0)
         self.assertEqual(sample["npu_temp_max_c"], 48.25)
+        self.assertEqual(sample["npu_util_avg"], 87.25)
         self.assertEqual(sample["rx_mbps"], 12.5)
         self.assertEqual(sample["tx_mbps"], 2.25)
         self.assertEqual(sample["inference_online"], 2)
@@ -129,6 +131,7 @@ class HistoryTests(unittest.TestCase):
         self.assertIsNone(sample["os_available_kb"])
         self.assertIsNone(sample["cmm_used_kb"])
         self.assertIsNone(sample["npu_temp_max_c"])
+        self.assertIsNone(sample["npu_util_avg"])
         self.assertEqual(sample["inference_online"], 0)
 
     def test_fetch_board_sends_configured_bearer_token(self):
@@ -235,6 +238,7 @@ class StaleDataTests(unittest.TestCase):
     def test_web_page_uses_in_flight_guard_and_shows_stale_state(self):
         self.assertIn("var updating=false", monitor.HTML)
         self.assertIn("Board Agent Stale", monitor.HTML)
+        self.assertIn("NPU Utilization", monitor.HTML)
         self.assertIn("AbortController", monitor.HTML)
         self.assertIn("controller.abort()},8000", monitor.HTML)
 

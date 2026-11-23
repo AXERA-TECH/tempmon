@@ -451,6 +451,7 @@ def make_history_sample(result):
     memory = data.get("mem") if isinstance(data.get("mem"), dict) else {}
     cmm = data.get("cmm") if isinstance(data.get("cmm"), dict) else {}
     net = data.get("net") if isinstance(data.get("net"), dict) else {}
+    npu = data.get("npu") if isinstance(data.get("npu"), dict) else {}
     inference = result.get("inference") if isinstance(result, dict) else {}
     inference = inference if isinstance(inference, dict) else {}
     llama = data.get("llama") if isinstance(data.get("llama"), dict) else {}
@@ -479,6 +480,7 @@ def make_history_sample(result):
         ),
         "os_available_kb": finite_or_none(memory.get("avail_kb")),
         "npu_temp_max_c": max(temperatures) if temperatures else None,
+        "npu_util_avg": finite_or_none(npu.get("util_avg")),
         "rx_mbps": finite_or_none(net.get("rx_mbps")),
         "tx_mbps": finite_or_none(net.get("tx_mbps")),
         "inference_online": int(inference.get("online_count") or 0),
@@ -647,6 +649,12 @@ async function upd(){
   g+=card('CPU Load (1/5/15)', D.load['1'].toFixed(2)+' / '+D.load['5'].toFixed(2)+' / '+D.load['15'].toFixed(2), '');
   g+=card('CPU', D.cpu_cores+' cores', cf);
   g+=card('Memory', fmtG(used)+' / '+fmtG(D.mem.total_kb), bar(mpct));
+  if(D.npu&&D.npu.util_avg!==undefined){
+    var nu=D.npu.util_avg;
+    var nucls=nu==null?'':(nu>=90?'hot':(nu>=70?'warn':''));
+    g+=card('NPU Utilization', nu==null?'--':nu.toFixed(1)+'%',
+      D.npu.tdp_freq_mhz+' MHz TDP · '+D.npu.clock_mhz.join(' / ')+' MHz clocks', nucls);
+  }
   if(D.cmm&&D.cmm.total_kb>0){
     var cpct=Math.min(100,D.cmm.used_kb/D.cmm.total_kb*100);
     var ccls=cpct>=60?'hot':(cpct>=30?'warn':'');
