@@ -90,6 +90,16 @@ class RangeTests(unittest.TestCase):
             (18080, 18089),
         )
 
+    def test_explicit_port_list_can_include_out_of_range_service(self):
+        ports = monitor.board_llama_ports({"llama_ports": ["18080-18089", 18500]})
+        self.assertEqual(len(ports), 11)
+        self.assertIn(18080, ports)
+        self.assertIn(18089, ports)
+        self.assertIn(18500, ports)
+
+    def test_explicit_port_list_falls_back_to_default_range(self):
+        self.assertEqual(monitor.board_llama_ports({}), set(range(18080, 18090)))
+
 
 class HistoryTests(unittest.TestCase):
     def test_history_sample_extracts_device_and_inference_values(self):

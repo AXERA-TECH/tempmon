@@ -69,6 +69,42 @@ def board_llama_range(board):
         return DEFAULT_LLAMA_PORT_MIN, DEFAULT_LLAMA_PORT_MAX
     return lo, hi
 
+
+def board_llama_ports(board):
+    """Return the inference ports to probe for a board.
+
+    A board may declare ``llama_ports`` as a list of integers or ``"lo-hi"``
+    strings. This lets a board expose services outside the default
+    18080-18089 range (for example axdiffusion on 18500) without widening
+    the scan for every board. When absent, the legacy min/max range is used.
+    """
+
+    raw = board.get("llama_ports")
+    ports = set()
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, bool):
+                continue
+            if isinstance(item, int):
+                ports.add(item)
+            elif isinstance(item, str):
+                text = item.strip()
+                if "-" in text:
+                    low, _, high = text.partition("-")
+                    if low.strip().isdigit() and high.strip().isdigit():
+                        ports.update(range(int(low), int(high) + 1))
+                elif text.isdigit():
+                    ports.add(int(text))
+    ports = {port for port in ports if 1 <= port <= 65535}
+    if not ports:
+        low, high = board_llama_range(board)
+        ports = set(range(low, high + 1))
+    if len(ports) > 128:
+        # Keep probing bounded and deterministic.
+        ports = set(sorted(ports)[:128])
+    return ports
+
+
 def load_conf():
     global conf
     try:
@@ -309,6 +345,10 @@ def probe_llama_port(ip, port):
     model = first_model_name(models)
     slot_summary = summarize_slots(slots)
     health_ok = 200 <= int(health_status or 0) < 300 and isinstance(health, dict)
+    # axdiffusion exposes /health with arch/sizes but no /slots endpoint.
+    is_image_service = isinstance(health, dict) and (
+        "arch" in health or "sizes" in health
+    )
     looks_llama = (
         (isinstance(health, dict) and ("status" in health or "error" in health))
         or (200 <= int(models_status or 0) < 300 and model is not None)
@@ -329,13 +369,18 @@ def probe_llama_port(ip, port):
         state = "unhealthy"
 
     result = {"port": port, "state": state, "is_llama": True,
+              "service": "image-generation" if is_image_service else "llama",
               "health_status": health_status, "model": model,
-              "slot_state": "processing" if slot_summary["processing"] else "idle",
+              "slot_state": (
+                  "n/a" if is_image_service
+                  else "processing" if slot_summary["processing"]
+                  else "idle"
+              ),
               "checked_at": time.time(), **slot_summary}
     diagnostics = []
     if models_error:
         diagnostics.append("models: " + models_error)
-    if slots_error:
+    if slots_error and int(slots_status or 0) != 404:
         diagnostics.append("slots: " + slots_error)
     if diagnostics:
         result["error"] = "; ".join(diagnostics)
@@ -344,7 +389,7 @@ def probe_llama_port(ip, port):
 
 def scan_board_llama(board, runtime):
     ip = str(board.get("ip", ""))
-    lo, hi = board_llama_range(board)
+    ports = board_llama_ports(board)
     now = time.time()
     full_due = float(runtime.get("next_full_scan", 0) or 0) <= now
     known = set()
@@ -353,13 +398,13 @@ def scan_board_llama(board, runtime):
             value = int(port)
         except (TypeError, ValueError):
             continue
-        if lo <= value <= hi:
+        if value in ports:
             known.add(value)
-    ports = set(range(lo, hi + 1)) if full_due else known
+    scan_ports = ports if full_due else known
     probes = []
-    if ports:
-        with ThreadPoolExecutor(max_workers=min(16, len(ports))) as executor:
-            futures = {executor.submit(probe_llama_port, ip, port): port for port in sorted(ports)}
+    if scan_ports:
+        with ThreadPoolExecutor(max_workers=min(16, len(scan_ports))) as executor:
+            futures = {executor.submit(probe_llama_port, ip, port): port for port in sorted(scan_ports)}
             for future in as_completed(futures):
                 probes.append(future.result())
     probes.sort(key=lambda item: item["port"])
@@ -368,7 +413,9 @@ def scan_board_llama(board, runtime):
     if full_due:
         runtime["last_full_scan_at"] = now
         runtime["next_full_scan"] = now + FULL_SCAN_INTERVAL
-    return {"port_range": [lo, hi], "online_count": len(servers), "servers": servers,
+    return {"port_range": [min(ports), max(ports)] if ports else [],
+            "ports": sorted(ports),
+            "online_count": len(servers), "servers": servers,
             "last_full_scan_at": runtime.get("last_full_scan_at"),
             "next_full_scan_at": runtime.get("next_full_scan")}
 
@@ -533,13 +580,15 @@ def poller():
                     cache[name] = result
                     record_history(name, result)
                 elif name not in cache:
+                    inference_ports = board_llama_ports(board)
                     cache[name] = {"name": name, "ip": str(board.get("ip", "")),
                                    "port": board_agent_port(board), "ok": False,
                                    "age_ms": 0, "received_at": time.time(), "data": None,
                                    "error": "poll failed",
                                    "agent": {"online": False, "ip": str(board.get("ip", "")),
                                              "port": board_agent_port(board)},
-                                   "inference": {"port_range": list(board_llama_range(board)),
+                                   "inference": {"port_range": [min(inference_ports), max(inference_ports)] if inference_ports else [],
+                                                 "ports": sorted(inference_ports),
                                                  "online_count": 0, "servers": []}}
         elapsed = time.monotonic() - cycle_started
         time.sleep(max(0.05, POLL_INTERVAL - elapsed))
@@ -637,7 +686,10 @@ async function upd(){
   else{inferState='<span class="state busy">Inference '+inf.servers[0].state+'</span>'}
   var states='<div class=states>'+agentState+inferState+'<span class=state>'+inf.port_range[0]+'-'+inf.port_range[1]+' · '+inf.online_count+' online</span></div>';
   var services='<div class=services>'+inf.servers.map(function(s){
-    return '<div class=svc><div class=p>:'+s.port+' · '+s.state+'</div><div class=m>'+((s.model||'model unknown').replace(/&/g,'&amp;').replace(/</g,'&lt;'))+'</div><div class=s>'+(s.slot_state||'slot unknown')+' · '+((s.context_used||0).toLocaleString())+' / '+((s.context_total||0).toLocaleString())+' ctx</div></div>';
+    var detail=s.service==='image-generation'
+      ?'image generation service'
+      :(s.slot_state||'slot unknown')+' · '+((s.context_used||0).toLocaleString())+' / '+((s.context_total||0).toLocaleString())+' ctx';
+    return '<div class=svc><div class=p>:'+s.port+' · '+s.state+'</div><div class=m>'+((s.model||'model unknown').replace(/&/g,'&amp;').replace(/</g,'&lt;'))+'</div><div class=s>'+detail+'</div></div>';
   }).join('')+'</div>';
   if(!b.data){h+='<div class=board>'+head+states+services+'<div class=off>agent offline / no device data'+(b.error?' ('+b.error+')':'')+'</div></div>';return}
   var D=b.data;

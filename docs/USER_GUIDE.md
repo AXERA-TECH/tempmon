@@ -241,6 +241,12 @@ cp boards.example.json boards.json
       "port": 8080,
       "llama_port_min": 18080,
       "llama_port_max": 18089
+    },
+    {
+      "name": "board-c",
+      "ip": "<board-c-ip>",
+      "port": 8080,
+      "llama_ports": ["18080-18089", 18500]
     }
   ]
 }
@@ -299,6 +305,7 @@ systemctl --user enable --now monitor.service
 | `port` | 板端 tempmon agent 端口 |
 | `token` | 可选，板端 agent 的 Bearer token |
 | `llama_port_min/max` | 可选，覆盖 llama-server 端口扫描范围 |
+| `llama_ports` | 可选，端口列表或 `"lo-hi"` 区间；可覆盖 18080–18089 之外的服务（如 axdiffusion 的 18500） |
 
 `boards.json` 是本地运行时配置，包含真实环境信息，不要提交到 Git。
 

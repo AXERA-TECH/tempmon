@@ -250,7 +250,8 @@ python3 monitor.py
       "port": 8080,
       "token": "<optional-token>",
       "llama_port_min": 18080,
-      "llama_port_max": 18089
+      "llama_port_max": 18089,
+      "llama_ports": ["18080-18089", 18500]
     }
   ]
 }
@@ -261,6 +262,7 @@ python3 monitor.py
 - `name` 必须唯一且稳定；
 - `token` 可选；
 - `llama_port_min/max` 可覆盖默认端口扫描范围；
+- `llama_ports` 可显式列出端口或 `"lo-hi"` 区间，用于 18080–18089 之外的服务（如 axdiffusion 的 18500）；
 - 配置文件每轮轮询自动重载；
 - `boards.json` 不提交 Git。
 
