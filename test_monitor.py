@@ -261,16 +261,16 @@ class BoardRegistrationTests(unittest.TestCase):
             old_registrations = monitor.registrations
             old_path = monitor.REGISTRATIONS
             try:
-                monitor.conf = {"boards": [{"name": "深圳-1", "ip": "192.0.2.10", "port": 8080}]}
+                monitor.conf = {"boards": [{"name": "board-a", "ip": "192.0.2.10", "port": 8080}]}
                 monitor.registrations = {}
                 monitor.REGISTRATIONS = str(Path(directory) / "registrations.json")
-                record = monitor.register_board("深圳-1", 8080, "192.0.2.20")
+                record = monitor.register_board("board-a", 8080, "192.0.2.20")
                 self.assertEqual(record["ip"], "192.0.2.20")
                 board = monitor.effective_board(monitor.conf["boards"][0])
                 self.assertEqual(board["ip"], "192.0.2.20")
                 self.assertEqual(board["registration"]["ip"], "192.0.2.20")
                 saved = json.loads(Path(monitor.REGISTRATIONS).read_text(encoding="utf-8"))
-                self.assertEqual(saved["深圳-1"]["ip"], "192.0.2.20")
+                self.assertEqual(saved["board-a"]["ip"], "192.0.2.20")
             finally:
                 monitor.conf = old_conf
                 monitor.registrations = old_registrations
@@ -280,14 +280,14 @@ class BoardRegistrationTests(unittest.TestCase):
         old_conf = monitor.conf
         old_registrations = monitor.registrations
         try:
-            monitor.conf = {"boards": [{"name": "深圳-1", "ip": "192.0.2.10"}]}
+            monitor.conf = {"boards": [{"name": "board-a", "ip": "192.0.2.10"}]}
             monitor.registrations = {}
             with self.assertRaises(LookupError):
                 monitor.register_board("other", 8080, "192.0.2.20")
             with self.assertRaises(ValueError):
-                monitor.register_board("深圳-1", 70000, "192.0.2.20")
+                monitor.register_board("board-a", 70000, "192.0.2.20")
             with self.assertRaises(ValueError):
-                monitor.register_board("深圳-1", 8080, "not-an-ip")
+                monitor.register_board("board-a", 8080, "not-an-ip")
         finally:
             monitor.conf = old_conf
             monitor.registrations = old_registrations

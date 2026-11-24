@@ -3,7 +3,7 @@
 
 The command is passed after `--`, for example:
 
-    python3 bench_sample.py --board 上海 --json report.json -- bash bench.sh ...
+    python3 bench_sample.py --board board-a --json report.json -- bash bench.sh ...
 
 The tool is intentionally read-only with respect to the board: all resource data comes
 from GET /api/all on the aggregator.
