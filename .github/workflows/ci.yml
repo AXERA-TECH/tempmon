@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           if grep -R -n -E '^(<<<<<<<|=======$|>>>>>>>)' \
-            README.md tempmon.c monitor.py bench_sample.py test_*.py boards.example.json .github; then
+            README.md docs tempmon.c monitor.py bench_sample.py test_*.py boards.example.json .github; then
             echo "::error::Unresolved conflict markers found"
             exit 1
           fi
