@@ -49,9 +49,23 @@ OS / CMM / NPU / network / llama-server
 
 ## 快速上手
 
-### 1. 编译并启动板端 agent
+### 1. 获取板端 agent
 
-在 AX8860 / AX8860P 板端执行：
+推荐直接下载预编译包：
+
+```text
+https://github.com/AXERA-TECH/tempmon/releases
+```
+
+下载 `tempmon-<version>-linux-aarch64.tar.gz`，在板端执行：
+
+```bash
+tar -xzf tempmon-<version>-linux-aarch64.tar.gz
+chmod +x tempmon
+./tempmon 8080
+```
+
+也可以在板端从源码编译：
 
 ```bash
 gcc -O2 -s -pthread -o tempmon tempmon.c

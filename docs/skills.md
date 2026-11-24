@@ -413,11 +413,20 @@ CI 执行：
 1. 校验 VERSION 与 tempmon.c 的 AGENT_VERSION 一致
 2. 校验 LICENSE
 3. Python 单元测试
-4. C agent 编译
+4. 本机 C agent 编译
 5. 生成 source artifact
 6. 冲突标记 / 空白错误检查
 7. 内网地址 / 凭据字面量扫描
 8. 聚合器 API / Web UI smoke test
+9. 使用 Arm GNU Toolchain 13.3.rel1 交叉编译静态 aarch64 agent
+10. 上传 tempmon-aarch64 artifact
+```
+
+发布：
+
+```text
+推送到 v* tag 时，.github/workflows/release.yml 会构建
+tempmon-<version>-linux-aarch64.tar.gz，并上传到 GitHub Release。
 ```
 
 ---

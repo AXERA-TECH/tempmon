@@ -123,3 +123,32 @@ jobs:
           name: tempmon-source
           path: tempmon-*.tar.gz
           if-no-files-found: error
+
+  build-aarch64:
+    name: Build static aarch64 agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Cache Arm GNU Toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tempmon-arm-gnu-toolchain-13.3.rel1
+          key: arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu
+
+      - name: Build static aarch64 agent
+        env:
+          ARM_TOOLCHAIN_DIR: ${{ runner.temp }}/tempmon-arm-gnu-toolchain-13.3.rel1
+        run: ./scripts/build-aarch64.sh
+
+      - name: Upload aarch64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tempmon-aarch64
+          path: |
+            dist/tempmon-*-linux-aarch64.tar.gz
+            dist/tempmon-*-linux-aarch64.tar.gz.sha256
+          if-no-files-found: error

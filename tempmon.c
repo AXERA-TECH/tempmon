@@ -28,7 +28,7 @@
 #define PORT_DEFAULT 8080
 #define MAX_ZONES 16
 #define MAX_BUF 32768
-#define AGENT_VERSION "2.2.0"
+#define AGENT_VERSION "2.2.1"
 #define LLAMA_PORT_MIN 18080
 #define LLAMA_PORT_MAX 18089
 

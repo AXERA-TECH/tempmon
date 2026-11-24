@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish aarch64 agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Cache Arm GNU Toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tempmon-arm-gnu-toolchain-13.3.rel1
+          key: arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu
+
+      - name: Build static aarch64 agent
+        env:
+          ARM_TOOLCHAIN_DIR: ${{ runner.temp }}/tempmon-arm-gnu-toolchain-13.3.rel1
+        run: ./scripts/build-aarch64.sh
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="$(cat VERSION)"
+          asset="dist/tempmon-${version}-linux-aarch64.tar.gz"
+          checksum="dist/tempmon-${version}-linux-aarch64.tar.gz.sha256"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$asset" "$checksum" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$asset" "$checksum" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "tempmon ${version}" \
+              --generate-notes
+          fi

@@ -104,11 +104,27 @@ systemd（后台服务）
 
 ## 安装
 
-### 1. 获取代码
+### 1. 获取代码或预编译包
+
+源码：
 
 ```bash
 git clone https://github.com/AXERA-TECH/tempmon.git
 cd tempmon
+```
+
+预编译 aarch64 包：
+
+```text
+https://github.com/AXERA-TECH/tempmon/releases
+```
+
+下载 `tempmon-<version>-linux-aarch64.tar.gz` 后：
+
+```bash
+tar -xzf tempmon-<version>-linux-aarch64.tar.gz
+chmod +x tempmon
+./tempmon 8080
 ```
 
 ### 2. 编译板端 agent
@@ -118,6 +134,21 @@ cd tempmon
 ```bash
 gcc -O2 -s -pthread -o tempmon tempmon.c
 ```
+
+在 x86 主机上交叉编译静态 aarch64 二进制：
+
+```bash
+./scripts/build-aarch64.sh
+```
+
+产物：
+
+```text
+dist/tempmon-<version>-linux-aarch64.tar.gz
+dist/tempmon-<version>-linux-aarch64.tar.gz.sha256
+```
+
+构建脚本默认使用 Arm GNU Toolchain `13.3.rel1`。
 
 检查：
 
