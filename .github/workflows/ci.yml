@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Test and build
@@ -19,6 +23,14 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Verify release metadata
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          test -n "$version"
+          test -s LICENSE
+          grep -F "#define AGENT_VERSION \"${version}\"" tempmon.c
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,6 +50,13 @@ jobs:
           set -euo pipefail
           gcc -O2 -Wall -Wextra -Werror -pthread -o /tmp/tempmon tempmon.c
           file /tmp/tempmon
+
+      - name: Package source
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          git archive --format=tar.gz --output="tempmon-${version}.tar.gz" HEAD
+          ls -lh "tempmon-${version}.tar.gz"
 
       - name: Reject conflict markers and whitespace errors
         run: |
@@ -97,3 +116,10 @@ jobs:
           curl --fail --silent http://127.0.0.1:18888/api/all -o "$RUNNER_TEMP/all.json"
           grep -q 'AX8860 Boards Monitor' "$RUNNER_TEMP/index.html"
           grep -q '"boards"' "$RUNNER_TEMP/all.json"
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tempmon-source
+          path: tempmon-*.tar.gz
+          if-no-files-found: error
