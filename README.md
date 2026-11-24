@@ -107,6 +107,7 @@ docs/USER_GUIDE.md
 ## 文档
 
 - [用户指南](docs/USER_GUIDE.md)：依赖、安装、配置、API、systemd、主动注册、benchmark 采样
+- [Agent / 开发指南](docs/skills.md)：项目结构、数据流、API、测试、修改指南、安全规则
 - [ax-model-manager](https://github.com/AXERA-TECH/ax-model-manager)：模型生命周期管理
 - [LICENSE](LICENSE)
 
