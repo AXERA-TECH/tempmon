@@ -18,6 +18,8 @@
 > tempmon 只做状态采集，不代理推理请求，也不控制模型启动。模型生命周期管理请使用
 > [ax-model-manager](https://github.com/AXERA-TECH/ax-model-manager)。
 
+![tempmon 中心监控面板](assets/monitor-dashboard.png)
+
 ---
 
 ## 架构
@@ -95,6 +97,20 @@ python3 monitor.py
 http://<monitor-host>:8888/
 ```
 
+如果板卡上有 `18080–18089` 之外的服务（例如 axdiffusion 的 `18500`），在 `boards.json`
+里显式列出端口：
+
+```json
+{
+  "name": "board-b",
+  "ip": "192.0.2.11",
+  "port": 8080,
+  "llama_ports": ["18080-18089", 18500]
+}
+```
+
+`llama_ports` 支持整数或 `"lo-hi"` 区间；不配置时使用默认的 `18080–18089` 扫描范围。
+
 ### 3. 生产部署
 
 systemd、主动注册、Bearer token、benchmark 采样等完整说明见：
@@ -110,11 +126,31 @@ docs/USER_GUIDE.md
 - NPU 温度、平均利用率、CPU load / 频率
 - OS 内存、CMM 内存池、DDR 带宽、磁盘、网络速率
 - llama-server 进程、RSS、监听端口和 slot 状态
+- 自动识别 llama-server 与 axdiffusion 生图服务
 - 多板卡聚合、Web Dashboard、历史趋势
+- 按板卡配置扫描端口（`llama_ports`），支持 18080–18089 之外的服务
 - 板卡主动注册，适合 DHCP / IP 变化环境
 - 只读 `/api/stats` 与 `/health`
 - 可选 Bearer token
 - 纯 Python 标准库聚合器，无需 pip 依赖
+
+---
+
+## 指标
+
+| 指标 | 来源 | 字段 |
+|---|---|---|
+| NPU 温度 | `/sys/class/thermal/thermal_zone*/temp` | `zones[].c` |
+| NPU 利用率 | `/proc/ax_proc/npu/top` | `npu.util_avg` |
+| CPU | `/proc/stat`、`/proc/cpuinfo` | `cpu_percent`、`cpu_freqs` |
+| OS / CMM | `/proc/meminfo`、`/proc/ax_proc/mem_cmm_info` | `mem`、`cmm` |
+| DDR 带宽 | `/proc/ax_proc/bw/bw` | `ddr.used_bw_gbps` |
+| 网络速率 | `/sys/class/net/end0/statistics` | `net.rx_mbps`、`net.tx_mbps` |
+| llama-server / 生图服务 | `/proc` + 端口探测 | `llama`、`inference` |
+
+DDR 带宽说明：agent 启动时如果 `/proc/ax_proc/bw/bw` 不存在，会自动尝试
+`insmod /soc/ko/ax_perf_monitor.ko`；读取 `All DDR USED BW`，按 KB × 1024 / 1e9
+换算为 GB/s。模块不可用时 `ddr.used_bw_gbps` 返回 `null`。
 
 ---
 
