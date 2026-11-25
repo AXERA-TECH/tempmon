@@ -28,7 +28,7 @@
 #define PORT_DEFAULT 8080
 #define MAX_ZONES 16
 #define MAX_BUF 32768
-#define AGENT_VERSION "2.2.1"
+#define AGENT_VERSION "2.3.0"
 #define LLAMA_PORT_MIN 18080
 #define LLAMA_PORT_MAX 18089
 
@@ -174,6 +174,30 @@ static double get_npu_util_avg(void) {
     }
     fclose(f);
     return count ? sum / count : -1;
+}
+
+/* DDR 带宽：ax_perf_monitor.ko 在 /proc/ax_proc/bw/bw 输出
+ * "All DDR USED BW:<KB>KB(...)"。KB 按 1024 字节换算为 GB/s。 */
+static double get_ddr_bw_gbps(void) {
+    FILE *f = fopen("/proc/ax_proc/bw/bw", "r");
+    if (!f) return -1.0;
+    char line[512];
+    double kb = -1.0;
+    while (fgets(line, sizeof(line), f)) {
+        const char *p = strstr(line, "All DDR USED BW:");
+        if (p && sscanf(p, "All DDR USED BW:%lfKB", &kb) == 1) break;
+    }
+    fclose(f);
+    if (kb < 0) return -1.0;
+    return kb * 1024.0 / 1e9;
+}
+
+/* 若模块未加载，尝试 insmod 一次；失败时 ddr 字段返回 null。 */
+static void ensure_ddr_monitor(void) {
+    if (access("/proc/ax_proc/bw/bw", R_OK) == 0) return;
+    if (access("/soc/ko/ax_perf_monitor.ko", R_OK) != 0) return;
+    int rc = system("insmod /soc/ko/ax_perf_monitor.ko >/dev/null 2>&1");
+    (void)rc;
 }
 
 static int get_llama_processes(char *js, size_t cap, long *rss_total_kb) {
@@ -495,6 +519,7 @@ static void build_json(char *buf, size_t cap) {
     char llama_js[4096], listen_js[1024];
     long tdp_mhz, npu_clocks[8], llama_rss_kb = 0;
     double npu_util_avg;
+    double ddr_bw_gbps;
     int nnpu, llama_procs, llama_ports;
     char bsp_version[128], chip_type[128];
     /* 网络速率：读 end0 累计字节数，跟上一次采样做差 */
@@ -518,6 +543,7 @@ static void build_json(char *buf, size_t cap) {
     tdp_mhz = get_tdp_freq_mhz();
     nnpu = get_npu_clocks(npu_clocks, 8);
     npu_util_avg = get_npu_util_avg();
+    ddr_bw_gbps = get_ddr_bw_gbps();
     llama_procs = get_llama_processes(llama_js, sizeof(llama_js), &llama_rss_kb);
     llama_ports = get_llama_listen_ports(listen_js, sizeof(listen_js));
     read_str_file("/proc/ax_proc/version", bsp_version, sizeof(bsp_version));
@@ -533,6 +559,10 @@ static void build_json(char *buf, size_t cap) {
     json_append(&p, &left, ",\"mem\":{\"total_kb\":%ld,\"avail_kb\":%ld,\"used_kb\":%ld}",
                 total_kb, avail_kb, total_kb - avail_kb);
     json_append(&p, &left, ",\"cmm\":{\"total_kb\":%ld,\"used_kb\":%ld}", cmm_total_kb, cmm_used_kb);
+    if (ddr_bw_gbps >= 0)
+        json_append(&p, &left, ",\"ddr\":{\"used_bw_gbps\":%.3f}", ddr_bw_gbps);
+    else
+        json_append(&p, &left, ",\"ddr\":{\"used_bw_gbps\":null}");
     json_append(&p, &left, ",\"net\":{\"iface\":\"end0\",\"rx_bytes\":%ld,\"tx_bytes\":%ld,\"rx_mbps\":%.1f,\"tx_mbps\":%.1f}",
                 rx_bytes, tx_bytes, rx_mbps, tx_mbps);
     json_append(&p, &left, ",\"disks\":%s", disks_js);
@@ -716,6 +746,7 @@ int main(int argc, char **argv) {
     }
     listen_port = port;
 
+    ensure_ddr_monitor();
     scan_zones();
     if (nzones == 0) {
         fprintf(stderr, "no thermal zones found\n");

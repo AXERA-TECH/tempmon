@@ -19,7 +19,7 @@
 └──────────────────────────────┘        └──────────┬──────────┘
                                                    │ 只读采集
                                         ┌──────────▼──────────┐
-                                        │ OS / CMM / NPU / net │
+                                        │ OS / CMM / NPU / DDR / net │
                                         └─────────────────────┘
 ```
 
@@ -39,6 +39,7 @@
 
 - NPU 温度与 CPU load / 频率
 - NPU 平均利用率（所有 core/vNPU 取平均）
+- DDR 带宽（All DDR USED BW，GB/s）
 - OS 内存与 CMM 内存池
 - 本地磁盘容量
 - 网卡累计流量与实时速率
@@ -484,6 +485,7 @@ python3 -m unittest discover -v
 | NPU TDP | `/proc/ax_proc/tdp` |
 | NPU clock | `/sys/kernel/debug/clk/npu*_clk_nn_glb/clk_rate` |
 | NPU 平均利用率 | `/proc/ax_proc/npu/top`，采样周期使用 `/proc/ax_proc/npu/top_period_ms`，建议 `1000 ms` |
+| DDR 带宽 | `/proc/ax_proc/bw/bw` 的 `All DDR USED BW`；需要 `insmod /soc/ko/ax_perf_monitor.ko`，agent 启动时会自动尝试加载；KB 按 1024 字节换算为 GB/s |
 | llama 进程 | `/proc/<pid>/comm`、`/proc/<pid>/status` |
 | 监听端口 | `/proc/net/tcp`、`/proc/net/tcp6` |
 

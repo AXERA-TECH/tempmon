@@ -497,6 +497,7 @@ def make_history_sample(result):
     data = data if isinstance(data, dict) else {}
     memory = data.get("mem") if isinstance(data.get("mem"), dict) else {}
     cmm = data.get("cmm") if isinstance(data.get("cmm"), dict) else {}
+    ddr = data.get("ddr") if isinstance(data.get("ddr"), dict) else {}
     net = data.get("net") if isinstance(data.get("net"), dict) else {}
     npu = data.get("npu") if isinstance(data.get("npu"), dict) else {}
     inference = result.get("inference") if isinstance(result, dict) else {}
@@ -528,6 +529,7 @@ def make_history_sample(result):
         "os_available_kb": finite_or_none(memory.get("avail_kb")),
         "npu_temp_max_c": max(temperatures) if temperatures else None,
         "npu_util_avg": finite_or_none(npu.get("util_avg")),
+        "ddr_bw_gbps": finite_or_none(ddr.get("used_bw_gbps")),
         "rx_mbps": finite_or_none(net.get("rx_mbps")),
         "tx_mbps": finite_or_none(net.get("tx_mbps")),
         "inference_online": int(inference.get("online_count") or 0),
@@ -706,6 +708,10 @@ async function upd(){
     var nucls=nu==null?'':(nu>=90?'hot':(nu>=70?'warn':''));
     g+=card('NPU Utilization', nu==null?'--':nu.toFixed(1)+'%',
       D.npu.tdp_freq_mhz+' MHz TDP · '+D.npu.clock_mhz.join(' / ')+' MHz clocks', nucls);
+  }
+  if(D.ddr&&D.ddr.used_bw_gbps!=null){
+    var dbw=D.ddr.used_bw_gbps;
+    g+=card('DDR Bandwidth', dbw==null?'--':dbw.toFixed(2)+' GB/s', 'All DDR USED BW', '');
   }
   if(D.cmm&&D.cmm.total_kb>0){
     var cpct=Math.min(100,D.cmm.used_kb/D.cmm.total_kb*100);

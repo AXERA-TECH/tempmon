@@ -7,7 +7,7 @@
 
 ```text
 板端 agent（tempmon.c）
-  采集 NPU 温度 / 利用率、CPU、OS 内存、CMM、磁盘、网络和 llama-server 状态
+  采集 NPU 温度 / 利用率、CPU、OS 内存、CMM、DDR 带宽、磁盘、网络和 llama-server 状态
 
 中心聚合器（monitor.py）
   轮询多块板卡，发现 llama-server，提供 Web Dashboard 和 JSON API
@@ -34,7 +34,7 @@ Web Dashboard / JSON API
 板端 tempmon agent :8080
         │
         ▼
-OS / CMM / NPU / network / llama-server
+OS / CMM / NPU / DDR / network / llama-server
 ```
 
 默认端口：
@@ -108,7 +108,7 @@ docs/USER_GUIDE.md
 ## 主要功能
 
 - NPU 温度、平均利用率、CPU load / 频率
-- OS 内存、CMM 内存池、磁盘、网络速率
+- OS 内存、CMM 内存池、DDR 带宽、磁盘、网络速率
 - llama-server 进程、RSS、监听端口和 slot 状态
 - 多板卡聚合、Web Dashboard、历史趋势
 - 板卡主动注册，适合 DHCP / IP 变化环境

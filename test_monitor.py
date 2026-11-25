@@ -110,6 +110,7 @@ class HistoryTests(unittest.TestCase):
                 "cmm": {"used_kb": 512},
                 "net": {"rx_mbps": "12.5", "tx_mbps": 2.25},
                 "npu": {"util_avg": 87.25},
+                "ddr": {"used_bw_gbps": "1.25"},
                 "zones": [{"c": 41.5}, {"c": 48.25}, {"c": None}],
                 "llama": {"rss_kb": 1024},
             },
@@ -128,6 +129,7 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(sample["cmm_used_kb"], 512.0)
         self.assertEqual(sample["npu_temp_max_c"], 48.25)
         self.assertEqual(sample["npu_util_avg"], 87.25)
+        self.assertEqual(sample["ddr_bw_gbps"], 1.25)
         self.assertEqual(sample["rx_mbps"], 12.5)
         self.assertEqual(sample["tx_mbps"], 2.25)
         self.assertEqual(sample["inference_online"], 2)
@@ -142,6 +144,7 @@ class HistoryTests(unittest.TestCase):
         self.assertIsNone(sample["cmm_used_kb"])
         self.assertIsNone(sample["npu_temp_max_c"])
         self.assertIsNone(sample["npu_util_avg"])
+        self.assertIsNone(sample["ddr_bw_gbps"])
         self.assertEqual(sample["inference_online"], 0)
 
     def test_fetch_board_sends_configured_bearer_token(self):
